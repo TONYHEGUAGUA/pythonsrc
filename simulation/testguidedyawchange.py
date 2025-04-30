@@ -8,6 +8,20 @@ import time
 from dronekit import connect, VehicleMode, LocationGlobalRelative
 from pymavlink import mavutil 
 
+#mavlink消息需要至少每秒发送一次
+def send_ned_yaw_rate(yaw_rate):
+    msg = vehicle.message_factory.set_position_target_local_ned_encode(
+    0,       # time_boot_ms (not used)
+    0, 0,    # target_system, target_component
+    mavutil.mavlink.MAV_FRAME_LOCAL_NED,  # frame=1
+    1479,  # type_mask=1479（忽略位置/加速度/偏航，启用速度/偏航率） 0b10111000111 使用速度+角速度
+    0, 0, 0,          # x/y/z位置（被忽略）
+    0, 0, 0,          # vx/vy/vz速度（未使用，但type_mask启用了速度字段）
+    0, 0, 0,          # afx/afy/afz加速度（被忽略）
+    0, yaw_rate          # yaw（被忽略）、yaw_rate=0.174 rad/s
+    )
+    vehicle.send_mavlink(msg)
+
 def send_ned_velocity(velocity_x, velocity_y, velocity_z, duration):
     """
     Move vehicle in direction based on specified velocity vectors and
@@ -107,22 +121,15 @@ def condition_yaw(heading, relative=False):
 
 vehicle = connect('127.0.0.1:14550', rate=10 , wait_ready=True)
 
-left_speed = -0.5  # 设置向左飞行速度为0.5m/s
 #condition_yaw(0,True)
+print("vehicle connected")
+time.sleep(1)
 arm_and_takeoff(10)
-   
-while True:
-    msg = vehicle.message_factory.set_position_target_local_ned_encode(
-    0,       # time_boot_ms (not used)
-    0, 0,    # target_system, target_component
-    mavutil.mavlink.MAV_FRAME_LOCAL_NED,  # frame=1
-    1479,  # type_mask=1479（忽略位置/加速度/偏航，启用速度/偏航率） 0b10111000111 使用速度+角速度
-    0, 0, 0,          # x/y/z位置（被忽略）
-    0, 0, 0,          # vx/vy/vz速度（未使用，但type_mask启用了速度字段）
-    0, 0, 0,          # afx/afy/afz加速度（被忽略）
-    0, 0.174          # yaw（被忽略）、yaw_rate=0.174 rad/s
-    )
-    vehicle.send_mavlink(msg)
+
+for x in range(0,34):
+    send_ned_yaw_rate(0.174)
     time.sleep(1)
+
+print("sending mavlink msg over")
     #vehicle.channels.overrides = {'4':1300}  #use channel override success
-time.sleep(10)
+#time.sleep(10)
